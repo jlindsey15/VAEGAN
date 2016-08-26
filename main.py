@@ -19,13 +19,13 @@ flags = tf.flags
 logging = tf.logging
 
 flags.DEFINE_integer("batch_size", 100, "batch size")
-flags.DEFINE_integer("updates_per_epoch", 1000, "number of updates per epoch")
-flags.DEFINE_integer("max_epoch", 100, "max epoch")
+flags.DEFINE_integer("updates_per_epoch", 100, "number of updates per epoch")
+flags.DEFINE_integer("max_epoch", 1000, "max epoch")
 flags.DEFINE_float("g_learning_rate", 1e-2, "learning rate")
 flags.DEFINE_float("d_learning_rate", 1e-3, "learning rate")
 flags.DEFINE_string("working_directory", "", "")
-flags.DEFINE_float("hidden_size", 256, "hidden size")
-flags.DEFINE_float("gamma", 1.0, "gamma")
+flags.DEFINE_float("hidden_size", 10, "hidden size")
+flags.DEFINE_float("gamma", 1, "gamma")
 
 FLAGS = flags.FLAGS
 
@@ -151,10 +151,10 @@ if __name__ == "__main__":
             
 
                     
-    reconstruction_loss = binary_crossentropy(input_features, gen_features)
+    reconstruction_loss = binary_crossentropy(tf.sigmoid(input_features), tf.sigmoid(gen_features))
     reconstruction_loss = tf.reduce_mean(tf.reduce_sum(reconstruction_loss, 1))
     D_loss = get_discrinator_loss(D1, D2)
-    G_loss = get_generator_loss(D2) + FLAGS.gamma * reconstruction_loss
+    G_loss = FLAGS.gamma * reconstruction_loss + get_generator_loss(D2)
 
     learning_rate = tf.placeholder(tf.float32, shape=[])
     optimizer = tf.train.AdamOptimizer(learning_rate, epsilon=1.0)
@@ -176,6 +176,7 @@ if __name__ == "__main__":
 
             discriminator_loss = 0.0
             generator_loss = 0.0
+            encoder_loss = 0.0
 
             widgets = ["epoch #%d|" % epoch, Percentage(), Bar(), ETA()]
             pbar = ProgressBar(FLAGS.updates_per_epoch, widgets=widgets)
@@ -183,6 +184,11 @@ if __name__ == "__main__":
             for i in range(FLAGS.updates_per_epoch):
                 pbar.update(i)
                 x, _ = mnist.train.next_batch(FLAGS.batch_size)
+                
+                _, loss_value = sess.run([train_discrimator, reconstruction_loss], {input_tensor: x, learning_rate: FLAGS.g_learning_rate})
+                
+                encoder_loss += loss_value
+                
                 _, loss_value = sess.run([train_discrimator, D_loss], {input_tensor: x, learning_rate: FLAGS.d_learning_rate})
                 discriminator_loss += loss_value
 
@@ -193,8 +199,9 @@ if __name__ == "__main__":
 
             discriminator_loss = discriminator_loss / FLAGS.updates_per_epoch
             generator_loss = generator_loss / FLAGS.updates_per_epoch
+            encoder_loss = encoder_loss / FLAGS.updates_per_epoch
 
-            print("Gen. loss %f, Disc. loss: %f" % (generator_loss,
+            print("Enc. loss %f, Gen. loss %f, Disc. loss: %f" % (encoder_loss, generator_loss,
                                                     discriminator_loss))
 
             for k in range(FLAGS.batch_size):
