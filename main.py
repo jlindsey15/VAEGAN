@@ -185,7 +185,7 @@ if __name__ == "__main__":
                 pbar.update(i)
                 x, _ = mnist.train.next_batch(FLAGS.batch_size)
                 
-                _, loss_value = sess.run([train_discrimator, reconstruction_loss], {input_tensor: x, learning_rate: FLAGS.g_learning_rate})
+                _, loss_value = sess.run([train_encoder, reconstruction_loss], {input_tensor: x, learning_rate: FLAGS.g_learning_rate})
                 
                 encoder_loss += loss_value
                 
